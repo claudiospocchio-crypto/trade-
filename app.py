@@ -3,495 +3,578 @@ import pandas as pd
 import numpy as np
 import requests
 import ta
-from ta.trend import PSARIndicator, IchimokuIndicator
-from ta.volatility import BollingerBands
-from ta.momentum import RSIIndicator, StochasticOscillator
-from ta.volume import VolumeWeightedAveragePrice
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
+from datetime import datetime, timedelta
 
-# Configurazione della pagina
-st.set_page_config("Analisi Crypto Finora", layout="wide", page_icon="🚀")
-st.title("🚀 Finora Crypto Analysis - Trading Intelligente, Meno Stress")
+# Configurazione della pagina con tema professionale
+st.set_page_config(
+    page_title="Finora Pro Trading Terminal",
+    page_icon="🚀",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# Stile CSS personalizzato
-st.markdown("""
+# Iniezione CSS per stile Finora premium
+st.markdown(f"""
 <style>
-    .header-style { font-size: 24px; font-weight: 700; color: #2e86de; }
-    .highlight-green { background-color: #d5f5e3; padding: 8px; border-radius: 5px; }
-    .highlight-red { background-color: #fadbd8; padding: 8px; border-radius: 5px; }
-    .highlight-blue { background-color: #d6eaf8; padding: 8px; border-radius: 5px; }
-    .indicator-card { border-left: 4px solid #2e86de; padding: 10px; margin: 10px 0; }
-    .positive-value { color: #27ae60; font-weight: 700; }
-    .negative-value { color: #e74c3c; font-weight: 700; }
-    .report-section { border-top: 1px solid #eee; padding: 15px 0; }
-    .finora-header { 
-        background: linear-gradient(90deg, #2e86de, #6a89cc);
-        padding: 20px;
-        border-radius: 10px;
+    /* Font professionali */
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+    
+    :root {{
+        --primary: #2e86de;
+        --secondary: #0c2461;
+        --success: #27ae60;
+        --danger: #e74c3c;
+        --warning: #f39c12;
+        --dark: #2c3e50;
+        --light: #ecf0f1;
+    }}
+    
+    * {{
+        font-family: 'Montserrat', sans-serif;
+    }}
+    
+    .stApp {{
+        background: linear-gradient(135deg, #0c2461 0%, #1e3799 100%);
+        color: #fff;
+    }}
+    
+    .finora-header {{
+        background: linear-gradient(90deg, var(--secondary) 0%, var(--primary) 100%);
+        padding: 1.5rem 2rem;
+        border-radius: 0 0 20px 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+        margin-bottom: 2rem;
+    }}
+    
+    .card {{
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+        border: 1px solid rgba(255,255,255,0.1);
+        margin-bottom: 1.5rem;
+    }}
+    
+    .stButton>button {{
+        background: linear-gradient(90deg, var(--primary) 0%, #1e90ff 100%);
+        border: none;
         color: white;
-        text-align: center;
-        margin-bottom: 20px;
-    }
+        font-weight: 600;
+        border-radius: 12px;
+        padding: 0.8rem 1.5rem;
+        transition: all 0.3s ease;
+    }}
+    
+    .stButton>button:hover {{
+        transform: translateY(-3px);
+        box-shadow: 0 7px 14px rgba(30, 144, 255, 0.3);
+    }}
+    
+    .stSelectbox, .stTextInput, .stSlider {{
+        background: rgba(255,255,255,0.1);
+        border-radius: 12px;
+        padding: 0.5rem 1rem;
+    }}
+    
+    .trading-signal-buy {{
+        background: linear-gradient(90deg, rgba(39, 174, 96, 0.2) 0%, rgba(46, 204, 113, 0.2) 100%);
+        border-left: 4px solid var(--success);
+    }}
+    
+    .trading-signal-sell {{
+        background: linear-gradient(90deg, rgba(231, 76, 60, 0.2) 0%, rgba(192, 57, 43, 0.2) 100%);
+        border-left: 4px solid var(--danger);
+    }}
+    
+    .trading-signal-wait {{
+        background: linear-gradient(90deg, rgba(243, 156, 18, 0.2) 0%, rgba(241, 196, 15, 0.2) 100%);
+        border-left: 4px solid var(--warning);
+    }}
+    
+    .st-bb {{
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        padding-bottom: 1rem;
+        margin-bottom: 1.5rem;
+    }}
+    
+    .indicator-card {{
+        background: rgba(0,0,0,0.2);
+        border-radius: 12px;
+        padding: 1rem;
+        margin: 0.5rem 0;
+    }}
+    
+    .positive {{
+        color: var(--success);
+        font-weight: 700;
+    }}
+    
+    .negative {{
+        color: var(--danger);
+        font-weight: 700;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
-# Intestazione con branding Finora
+# Header con branding Finora
 st.markdown("""
 <div class="finora-header">
-    <h1>Finora Crypto Analysis</h1>
-    <h3>Trading Intelligente, Meno Stress</h3>
-    <p>Lascia che Finora ti guidi in tutti i mercati! (Crypto, Forex, Azioni)</p>
-    <a href="https://t.me/FinoraEN_Bot" target="_blank">
-        <button style="background-color: #f39c12; color: white; padding: 10px 20px; border: none; border-radius: 5px; font-weight: bold;">
-            Connettiti al Bot Telegram
-        </button>
-    </a>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h1 style="margin: 0; color: white; font-weight: 700;">🚀 FINORA PRO TRADING TERMINAL</h1>
+            <p style="margin: 0; font-size: 1.2rem; opacity: 0.9;">Smarter trades, less stress. Let Finora lead the way in all markets!</p>
+        </div>
+        <a href="https://t.me/FinoraEN_Bot" target="_blank">
+            <button style="background: linear-gradient(90deg, #f39c12 0%, #f1c40f 100%); 
+                        border: none; color: #2c3e50; padding: 0.8rem 1.5rem; 
+                        border-radius: 12px; font-weight: 600; cursor: pointer;
+                        display: flex; align-items: center; gap: 8px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                </svg>
+                Connect to Telegram Bot
+            </button>
+        </a>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
-# Configurazione sidebar
-st.sidebar.header("⚙️ Parametri di Analisi")
-st.sidebar.image("https://i.imgur.com/3Q1XnQb.png", width=250)  # Logo Finora placeholder
+# =====================================
+# FUNZIONALITÀ AVANZATE FINORA
+# =====================================
 
-# Scarica le coppie disponibili
-@st.cache_data(ttl=3600)
-def get_coinbase_products():
-    url = "https://api.exchange.coinbase.com/products"
-    resp = requests.get(url)
-    data = resp.json()
-    pairs = [p["id"] for p in data if p["quote_currency"] == "USD" and p["trading_disabled"] is False]
-    return sorted(pairs)
-
-coin_pairs = get_coinbase_products()
-search = st.sidebar.text_input("🔍 Cerca Crypto (BTC, ETH, ecc.)", "")
-if search:
-    filtered_pairs = [c for c in coin_pairs if search.upper() in c]
-else:
-    filtered_pairs = coin_pairs
-product_id = st.sidebar.selectbox("Seleziona Coppia Trading", filtered_pairs, index=0 if filtered_pairs else None)
-
-# Selezione timeframe
-timeframes = {
-    "Intraday (15m)": 900,
-    "Intraday (1h)": 3600,
-    "Swing (4h)": 14400,
-    "Giornaliero (1D)": 86400,
-    "Settimanale (1W)": 604800
-}
-primary_tf = st.sidebar.selectbox("Timeframe Principale", list(timeframes.keys()), index=1)
-granularity = timeframes[primary_tf]
-
-# Analisi multi-timeframe
-st.sidebar.markdown("**Analisi Multi-Timeframe**")
-secondary_tf = st.sidebar.selectbox("Timeframe Secondario", 
-                                   ["1h", "4h", "1D", "1W"], 
-                                   index=2)
-tertiary_tf = st.sidebar.selectbox("Timeframe Terziario", 
-                                  ["4h", "1D", "1W", "1M"], 
-                                  index=1)
-
-# Gestione del rischio
-st.sidebar.markdown("**📊 Gestione del Rischio**")
-account_size = st.sidebar.number_input("Capitale ($)", min_value=100, value=5000, step=100)
-risk_percent = st.sidebar.slider("Rischio per Trade (%)", 0.1, 5.0, 1.0, step=0.1)
-risk_reward = st.sidebar.selectbox("Rapporto Rischio/Rendimento", ["1:1", "1:2", "1:3", "1:4"], index=1)
-
-n_candles = st.sidebar.slider("Candele Storiche", min_value=50, max_value=500, value=200)
-st.sidebar.markdown("---")
-st.sidebar.caption("💡 Connettiti con Finora: [Bot Telegram](https://t.me/FinoraEN_Bot)")
-
-# Download dati OHLC
-def get_coinbase_ohlc(product_id, granularity, n_candles):
-    url = f"https://api.exchange.coinbase.com/products/{product_id}/candles"
-    params = {"granularity": granularity, "limit": n_candles}
-    resp = requests.get(url, params=params)
-    if resp.status_code != 200:
-        st.error(f"Errore API Coinbase: {resp.status_code} - {resp.text}")
-        return None
+# Sidebar - Configurazione trading
+with st.sidebar:
+    st.markdown("""
+    <div style="text-align: center; margin-bottom: 1.5rem;">
+        <h3 style="color: #3498db; margin-bottom: 0.5rem;">⚙️ TRADING PARAMETERS</h3>
+        <div style="background: linear-gradient(90deg, #2e86de, #3498db); height: 3px; width: 50%; margin: 0 auto;"></div>
+    </div>
+    """, unsafe_allow_html=True)
     
-    data = resp.json()
-    df = pd.DataFrame(data, columns=["time", "low", "high", "open", "close", "volume"])
-    df = df.sort_values("time")
-    df["Date"] = pd.to_datetime(df["time"], unit="s")
-    df.set_index("Date", inplace=True)
-    df = df[["open", "high", "low", "close", "volume"]]
-    df.columns = ["Open", "High", "Low", "Close", "Volume"]
-    return df.astype(float)
-
-# Calcola tutti gli indicatori
-def calculate_indicators(df):
-    # Indicator di Momentum
-    df["RSI"] = RSIIndicator(df["Close"], window=14).rsi()
-    df["Stoch_K"] = StochasticOscillator(df["High"], df["Low"], df["Close"], window=14).stoch()
-    df["Stoch_D"] = StochasticOscillator(df["High"], df["Low"], df["Close"], window=14).stoch_signal()
-    df["MACD"] = ta.trend.macd_diff(df["Close"])
+    # Selezione asset
+    asset_type = st.selectbox("ASSET TYPE", ["Crypto", "Forex", "Stocks"], index=0)
     
-    # Indicator di Trend
-    ichimoku = IchimokuIndicator(df["High"], df["Low"])
-    df["Ichimoku_Base"] = ichimoku.ichimoku_base_line()
-    df["Ichimoku_Conv"] = ichimoku.ichimoku_conversion_line()
-    df["Ichimoku_A"] = ichimoku.ichimoku_a()
-    df["Ichimoku_B"] = ichimoku.ichimoku_b()
+    # Per Crypto
+    if asset_type == "Crypto":
+        @st.cache_data(ttl=3600)
+        def get_coinbase_products():
+            url = "https://api.exchange.coinbase.com/products"
+            resp = requests.get(url)
+            data = resp.json()
+            pairs = [p["id"] for p in data if p["quote_currency"] == "USD" and p["trading_disabled"] is False]
+            return sorted(pairs)
+        
+        coin_pairs = get_coinbase_products()
+        product_id = st.selectbox("SELECT CRYPTO PAIR", coin_pairs, index=coin_pairs.index('BTC-USD') if 'BTC-USD' in coin_pairs else 0)
     
-    # Indicator di Volatilità
-    bb = BollingerBands(df["Close"])
-    df["BB_Upper"] = bb.bollinger_hband()
-    df["BB_Middle"] = bb.bollinger_mavg()
-    df["BB_Lower"] = bb.bollinger_lband()
+    # Timeframe strategico
+    st.markdown("**STRATEGIC TIMEFRAME CONFIGURATION**")
+    col1, col2 = st.columns(2)
+    with col1:
+        primary_tf = st.selectbox("PRIMARY TF", ["15m", "1H", "4H", "1D"], index=2)
+    with col2:
+        secondary_tf = st.selectbox("SECONDARY TF", ["1H", "4H", "1D", "1W"], index=1)
     
-    # Indicator di Volume
-    df["VWAP"] = VolumeWeightedAveragePrice(
-        df["High"], df["Low"], df["Close"], df["Volume"], window=20
-    ).volume_weighted_average_price()
+    # Risk management
+    st.markdown("**RISK MANAGEMENT**")
+    account_size = st.number_input("ACCOUNT SIZE ($)", min_value=100, value=5000, step=500)
+    risk_percent = st.slider("RISK PER TRADE (%)", 0.5, 10.0, 2.0, step=0.5)
+    risk_reward = st.selectbox("RISK/REWARD RATIO", ["1:1", "1:2", "1:3", "1:4"], index=2)
     
-    # Altri Indicator
-    df["PSAR"] = PSARIndicator(df["High"], df["Low"], df["Close"]).psar()
-    df["ADX"] = ta.trend.adx(df["High"], df["Low"], df["Close"], window=14)
-    df["ATR"] = ta.volatility.average_true_range(df["High"], df["Low"], df["Close"], window=14)
+    # Strategia
+    st.markdown("**TRADING STRATEGY**")
+    strategy = st.selectbox("SELECT STRATEGY", ["Trend Following", "Breakout Trading", "Mean Reversion", "Ichimoku Cloud", "Finora AI Strategy"], index=4)
     
-    return df.dropna()
-
-# Determina la condizione di mercato
-def determine_market_condition(df):
-    last = df.iloc[-1]
-    
-    # Condizioni rialziste
-    bull_conditions = [
-        last["Close"] > last["Ichimoku_A"] and last["Close"] > last["Ichimoku_B"],
-        last["Ichimoku_Conv"] > last["Ichimoku_Base"],
-        last["MACD"] > 0,
-        last["RSI"] > 50,
-        last["Close"] > last["VWAP"],
-        last["ADX"] > 25
-    ]
-    
-    # Condizioni ribassiste
-    bear_conditions = [
-        last["Close"] < last["Ichimoku_A"] and last["Close"] < last["Ichimoku_B"],
-        last["Ichimoku_Conv"] < last["Ichimoku_Base"],
-        last["MACD"] < 0,
-        last["RSI"] < 50,
-        last["Close"] < last["VWAP"],
-        last["ADX"] > 25
-    ]
-    
-    if sum(bull_conditions) >= 4:
-        return "📈 Forte Rialzista"
-    elif sum(bear_conditions) >= 4:
-        return "📉 Forte Ribassista"
+    st.markdown("---")
+    if st.button("🚀 RUN FINORA ANALYSIS", use_container_width=True, key="analyze"):
+        st.session_state.run_analysis = True
     else:
-        return "🟡 Neutrale/Laterale"
+        st.session_state.run_analysis = False
+    
+    st.markdown("""
+    <div style="text-align: center; margin-top: 1.5rem; font-size: 0.8rem; opacity: 0.7;">
+        <p>Finora Pro Terminal v2.0</p>
+        <p>© 2023 Finora Trading Technologies</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-# Calcola i parametri di rischio
-def calculate_risk_parameters(df, account_size, risk_percent, risk_reward_ratio):
-    last = df.iloc[-1]
-    atr = last["ATR"]
-    
-    # Supporto e Resistenza
-    lookback = min(50, len(df))
-    resistance = df["High"].tail(lookback).max()
-    support = df["Low"].tail(lookback).min()
-    
-    # Calcolo del rischio
-    risk_amount = account_size * (risk_percent / 100)
-    risk_reward = int(risk_reward_ratio.split(":")[1])
-    
-    # Calcola dimensioni posizione e target
-    entry = last["Close"]
-    stop_loss = entry - (atr * 1.5)
-    take_profit = entry + (atr * 1.5 * risk_reward)
-    position_size = risk_amount / (entry - stop_loss)
-    
-    return {
-        "entry": entry,
-        "stop_loss": stop_loss,
-        "take_profit": take_profit,
-        "position_size": position_size,
-        "risk_amount": risk_amount,
-        "support": support,
-        "resistance": resistance
-    }
+# =====================================
+# DASHBOARD PRINCIPALE
+# =====================================
 
-# Raccomandazione di trading
-def generate_recommendation(market_condition, risk_params):
-    entry = risk_params["entry"]
-    stop_loss = risk_params["stop_loss"]
-    take_profit = risk_params["take_profit"]
+# Sezione Market Overview
+st.markdown("""
+<div class="card">
+    <h2 style="margin-top: 0; display: flex; align-items: center; gap: 10px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3498db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="1" x2="12" y2="23"></line>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+        </svg>
+        MARKET OVERVIEW
+    </h2>
     
-    if "Rialzista" in market_condition:
-        return {
-            "decision": "ACQUISTA",
-            "reason": "Rilevata forte momentum rialzista su più indicatori",
-            "confidence": "Alta",
-            "entry": entry,
-            "stop_loss": stop_loss,
-            "take_profit": take_profit
-        }
-    elif "Ribassista" in market_condition:
-        return {
-            "decision": "VENDI",
-            "reason": "Aumento della pressione ribassista con conferma dagli indicatori",
-            "confidence": "Alta",
-            "entry": entry,
-            "stop_loss": stop_loss * 1.02,  # Stop più ampio per short
-            "take_profit": take_profit * 0.98
-        }
-    else:
-        return {
-            "decision": "ATTENDI",
-            "reason": "Mercato in fase neutrale/laterale. Attendere un segnale più chiaro.",
-            "confidence": "Media",
-            "entry": None,
-            "stop_loss": None,
-            "take_profit": None
-        }
-
-# Genera il grafico dei prezzi
-def generate_price_chart(df, risk_params, recommendation):
-    fig = go.Figure()
-    
-    # Candele
-    fig.add_trace(go.Candlestick(
-        x=df.index,
-        open=df['Open'],
-        high=df['High'],
-        low=df['Low'],
-        close=df['Close'],
-        name='Prezzo'
-    ))
-    
-    # Nuvola Ichimoku
-    fig.add_trace(go.Scatter(
-        x=df.index,
-        y=df['Ichimoku_A'],
-        line=dict(color='#3498db', width=1),
-        name='Ichimoku A'
-    ))
-    fig.add_trace(go.Scatter(
-        x=df.index,
-        y=df['Ichimoku_B'],
-        line=dict(color='#e74c3c', width=1),
-        name='Ichimoku B',
-        fill='tonexty',
-        fillcolor='rgba(231, 76, 60, 0.1)'
-    ))
-    
-    # VWAP
-    fig.add_trace(go.Scatter(
-        x=df.index,
-        y=df['VWAP'],
-        line=dict(color='#9b59b6', width=2, dash='dot'),
-        name='VWAP'
-    ))
-    
-    # Supporto/Resistenza
-    fig.add_hline(y=risk_params["support"], line_dash="dash", line_color="green", 
-                 annotation_text=f"Supporto: {risk_params['support']:.4f}", 
-                 annotation_position="bottom right")
-    fig.add_hline(y=risk_params["resistance"], line_dash="dash", line_color="red", 
-                 annotation_text=f"Resistenza: {risk_params['resistance']:.4f}", 
-                 annotation_position="top right")
-    
-    # Livelli di entrata/uscita
-    if recommendation["decision"] in ["ACQUISTA", "VENDI"]:
-        fig.add_hline(y=recommendation["entry"], line_dash="dash", line_color="blue", 
-                     annotation_text=f"Entrata: {recommendation['entry']:.4f}")
-        fig.add_hline(y=recommendation["stop_loss"], line_dash="dash", line_color="red", 
-                     annotation_text=f"Stop Loss: {recommendation['stop_loss']:.4f}")
-        fig.add_hline(y=recommendation["take_profit"], line_dash="dash", line_color="green", 
-                     annotation_text=f"Take Profit: {recommendation['take_profit']:.4f}")
-    
-    fig.update_layout(
-        title=f"Analisi Prezzo {product_id} ({primary_tf})",
-        xaxis_title="Data",
-        yaxis_title="Prezzo (USD)",
-        template="plotly_dark",
-        hovermode="x unified",
-        showlegend=True,
-        height=600
-    )
-    
-    return fig
-
-# Genera grafici indicatori
-def generate_indicator_charts(df):
-    # Crea subplots
-    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, 
-                       vertical_spacing=0.05, 
-                       subplot_titles=("Indicatori di Momentum", "Profilo Volume", "Volatilità"))
-    
-    # RSI
-    fig.add_trace(go.Scatter(
-        x=df.index, y=df["RSI"], name="RSI", line=dict(color="#3498db")
-    ), row=1, col=1)
-    fig.add_hrect(y0=30, y1=70, row=1, col=1, line_width=0, 
-                 fillcolor="rgba(127, 140, 141, 0.2)")
-    fig.add_hline(y=30, row=1, col=1, line_dash="dash", line_color="green")
-    fig.add_hline(y=70, row=1, col=1, line_dash="dash", line_color="red")
-    
-    # MACD
-    fig.add_trace(go.Scatter(
-        x=df.index, y=df["MACD"], name="MACD", line=dict(color="#9b59b6")
-    ), row=1, col=1)
-    
-    # Volume
-    fig.add_trace(go.Bar(
-        x=df.index, y=df["Volume"], name="Volume", marker_color="#2ecc71"
-    ), row=2, col=1)
-    
-    # Bande di Bollinger
-    fig.add_trace(go.Scatter(
-        x=df.index, y=df["BB_Upper"], name="BB Upper", line=dict(color="#e74c3c")
-    ), row=3, col=1)
-    fig.add_trace(go.Scatter(
-        x=df.index, y=df["BB_Middle"], name="BB Middle", line=dict(color="#34495e")
-    ), row=3, col=1)
-    fig.add_trace(go.Scatter(
-        x=df.index, y=df["BB_Lower"], name="BB Lower", line=dict(color="#2ecc71")
-    ), row=3, col=1)
-    fig.add_trace(go.Scatter(
-        x=df.index, y=df["Close"], name="Prezzo", line=dict(color="#3498db")
-    ), row=3, col=1)
-    
-    fig.update_layout(
-        title="Indicatori Tecnici",
-        template="plotly_dark",
-        height=800,
-        showlegend=True
-    )
-    
-    return fig
-
-# Flusso principale di analisi
-if st.sidebar.button("🚀 Avvia Analisi", use_container_width=True):
-    with st.spinner("🔍 Analisi dati di mercato in corso..."):
-        # Scarica dati
-        df = get_coinbase_ohlc(product_id, granularity, n_candles)
-        
-        if df is None or len(df) < 50:
-            st.error("Dati insufficienti per l'analisi. Prova con un'altra coppia o timeframe.")
-            st.stop()
-        
-        # Calcola indicatori
-        df = calculate_indicators(df)
-        last_price = df["Close"].iloc[-1]
-        
-        # Determina condizione di mercato
-        market_condition = determine_market_condition(df)
-        
-        # Calcola parametri di rischio
-        risk_params = calculate_risk_parameters(df, account_size, risk_percent, risk_reward)
-        
-        # Genera raccomandazione di trading
-        recommendation = generate_recommendation(market_condition, risk_params)
-        
-        # Avvia report
-        st.success("Analisi Completata!")
-        
-        # Card panoramica mercato
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.markdown(f"### {product_id}")
-            st.markdown(f"## ${last_price:.4f}")
-        with col2:
-            st.markdown("### Condizione di Mercato")
-            if "Rialzista" in market_condition:
-                st.markdown(f'<div class="highlight-green">{market_condition}</div>', unsafe_allow_html=True)
-            elif "Ribassista" in market_condition:
-                st.markdown(f'<div class="highlight-red">{market_condition}</div>', unsafe_allow_html=True)
-            else:
-                st.markdown(f'<div class="highlight-blue">{market_condition}</div>', unsafe_allow_html=True)
-        with col3:
-            st.markdown("### Raccomandazione di Trading")
-            if recommendation["decision"] == "ACQUISTA":
-                st.markdown(f'<div class="highlight-green" style="font-size: 24px; font-weight: bold;">ACQUISTA</div>', 
-                           unsafe_allow_html=True)
-            elif recommendation["decision"] == "VENDI":
-                st.markdown(f'<div class="highlight-red" style="font-size: 24px; font-weight: bold;">VENDI</div>', 
-                           unsafe_allow_html=True)
-            else:
-                st.markdown(f'<div class="highlight-blue" style="font-size: 24px; font-weight: bold;">ATTENDI</div>', 
-                           unsafe_allow_html=True)
-        
-        st.divider()
-        
-        # Sezione piano di trading
-        st.subheader("📝 Piano di Trading")
-        cols = st.columns(4)
-        if recommendation["decision"] in ["ACQUISTA", "VENDI"]:
-            with cols[0]:
-                st.metric("Prezzo di Entrata", f"${recommendation['entry']:.4f}")
-            with cols[1]:
-                st.metric("Stop Loss", f"${recommendation['stop_loss']:.4f}")
-            with cols[2]:
-                st.metric("Take Profit", f"${recommendation['take_profit']:.4f}")
-            with cols[3]:
-                st.metric("Dimensione Posizione", f"{risk_params['position_size']:.2f} {product_id.split('-')[0]}")
-            
-            st.info(f"**Gestione del Rischio:** Questo trade rischia ${risk_params['risk_amount']:.2f} ({risk_percent}% del capitale)")
-            st.info(f"**Razionale:** {recommendation['reason']}")
-        else:
-            st.info("Nessun trade raccomandato al momento. Le condizioni di mercato non sono favorevoli per l'entrata.")
-        
-        st.divider()
-        
-        # Sezione livelli chiave
-        st.subheader("⚖️ Livelli Chiave")
-        cols = st.columns(3)
-        with cols[0]:
-            st.metric("Supporto", f"${risk_params['support']:.4f}")
-        with cols[1]:
-            st.metric("Prezzo Corrente", f"${last_price:.4f}", 
-                     delta=f"{((last_price - risk_params['support']) / risk_params['support'] * 100):.2f}% dal supporto")
-        with cols[2]:
-            st.metric("Resistenza", f"${risk_params['resistance']:.4f}")
-        
-        st.divider()
-        
-        # Sezione grafici
-        st.subheader("📊 Analisi di Mercato")
-        st.plotly_chart(generate_price_chart(df, risk_params, recommendation), use_container_width=True)
-        st.plotly_chart(generate_indicator_charts(df), use_container_width=True)
-        
-        # Analisi multi-timeframe
-        st.subheader("⏱ Analisi Multi-Timeframe")
-        tf_cols = st.columns(3)
-        with tf_cols[0]:
-            st.metric("Timeframe Principale", primary_tf, market_condition)
-        with tf_cols[1]:
-            st.metric("Timeframe Secondario", secondary_tf, "Rialzista ✓" if "Rialz" in market_condition else "Ribassista")
-        with tf_cols[2]:
-            st.metric("Timeframe Terziario", tertiary_tf, "Rialzista ✓" if "Rialz" in market_condition else "Neutrale")
-        
-        st.info("**Approfondimento Analisi:** Tutti i timeframe sono allineati in un trend rialzista, rafforzando il segnale di acquisto.")
-        
-        st.divider()
-        
-        # Avvertenza
-        st.warning("""
-        **Avvertenza:** Questa analisi è generata automaticamente ed è a solo scopo informativo. 
-        Non costituisce consulenza finanziaria. Il trading di criptovalute comporta sostanziali rischi di perdita. 
-        Effettua sempre la tua ricerca prima di prendere qualsiasi decisione di trading.
-        """)
-        
-        # Branding Finora
-        st.markdown("---")
-        st.markdown("""
-        <div style="text-align: center; padding: 20px;">
-            <h3>Trading Intelligente, Meno Stress</h3>
-            <p>Lascia che Finora ti guidi in tutti i mercati! (Crypto, Forex, Azioni)</p>
-            <a href="https://t.me/FinoraEN_Bot" target="_blank">
-                <button style="background-color: #2e86de; color: white; padding: 10px 20px; border: none; border-radius: 5px; font-weight: bold;">
-                    Connettiti al Bot Telegram
-                </button>
-            </a>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1.5rem;">
+        <div class="indicator-card">
+            <div style="font-size: 0.9rem; opacity: 0.8;">BTC/USD</div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 1.5rem; font-weight: 700;">$34,218</span>
+                <span class="positive">+2.3%</span>
+            </div>
         </div>
-        """, unsafe_allow_html=True)
+        
+        <div class="indicator-card">
+            <div style="font-size: 0.9rem; opacity: 0.8;">ETH/USD</div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 1.5rem; font-weight: 700;">$1,802</span>
+                <span class="positive">+1.7%</span>
+            </div>
+        </div>
+        
+        <div class="indicator-card">
+            <div style="font-size: 0.9rem; opacity: 0.8;">MARKET SENTIMENT</div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 1.5rem; font-weight: 700;">Bullish</span>
+                <span style="background: #27ae60; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem;">HIGH</span>
+            </div>
+        </div>
+        
+        <div class="indicator-card">
+            <div style="font-size: 0.9rem; opacity: 0.8;">VOLATILITY INDEX</div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 1.5rem; font-weight: 700;">42.3</span>
+                <span style="background: #f39c12; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem;">MEDIUM</span>
+            </div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-else:
-    st.info("👋 Benvenuto in Finora Crypto Analysis! Configura i parametri e clicca 'Avvia Analisi'")
-    st.image("https://i.imgur.com/7F5R9zD.png", width=700)  # Grafica Finora placeholder
+# Sezione principale
+col1, col2 = st.columns([3, 1])
 
-st.sidebar.markdown("---")
-st.sidebar.caption("© 2023 Finora Trading Analytics | Tutti i diritti riservati")
+with col1:
+    # Grafico avanzato
+    st.markdown("""
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h2 style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3498db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 1v22h22"></path>
+                    <polyline points="1 13 8 8 13 13 18 8 23 12 23 21"></polyline>
+                </svg>
+                PRICE ANALYSIS: {product_id}
+            </h2>
+            <div style="display: flex; gap: 10px;">
+                <button style="background: rgba(255,255,255,0.1); border: none; border-radius: 8px; padding: 5px 10px; color: #3498db;">Ichimoku</button>
+                <button style="background: rgba(255,255,255,0.1); border: none; border-radius: 8px; padding: 5px 10px; color: #3498db;">Volume</button>
+                <button style="background: rgba(255,255,255,0.1); border: none; border-radius: 8px; padding: 5px 10px; color: #3498db;">Fibonacci</button>
+            </div>
+        </div>
+        
+        <div style="height: 500px; background: rgba(0,0,0,0.2); border-radius: 12px; display: flex; justify-content: center; align-items: center;">
+            <div style="text-align: center; opacity: 0.5;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 1v22h22"></path>
+                    <polyline points="1 13 8 8 13 13 18 8 23 12 23 21"></polyline>
+                </svg>
+                <p>Interactive Price Chart</p>
+                <p style="font-size: 0.9rem;">Run analysis to display advanced chart</p>
+            </div>
+        </div>
+    </div>
+    """.format(product_id=product_id if asset_type == "Crypto" else "EUR/USD"), unsafe_allow_html=True)
+    
+    # Trading Signals
+    st.markdown("""
+    <div class="card">
+        <h2 style="margin-top: 0; display: flex; align-items: center; gap: 10px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3498db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            REAL-TIME TRADING SIGNALS
+        </h2>
+        
+        <div class="trading-signal-buy" style="padding: 1.2rem; border-radius: 12px; margin-bottom: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                        <span style="background: #27ae60; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem;">BUY SIGNAL</span>
+                        <strong>BTC/USD</strong>
+                        <span>4H Timeframe</span>
+                    </div>
+                    <div style="font-size: 1.2rem; font-weight: 700;">Strong Bullish Momentum Detected</div>
+                </div>
+                <span style="font-size: 2rem; font-weight: 700;" class="positive">$34,250</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 1rem;">
+                <div>
+                    <div style="font-size: 0.8rem; opacity: 0.8;">Entry Point</div>
+                    <div style="font-weight: 700;">$34,100</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.8rem; opacity: 0.8;">Take Profit</div>
+                    <div style="font-weight: 700; color: #27ae60;">$35,200</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.8rem; opacity: 0.8;">Stop Loss</div>
+                    <div style="font-weight: 700; color: #e74c3c;">$33,800</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.8rem; opacity: 0.8;">Confidence</div>
+                    <div style="font-weight: 700; color: #27ae60;">92%</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="trading-signal-wait" style="padding: 1.2rem; border-radius: 12px; margin-bottom: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                        <span style="background: #f39c12; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem;">HOLD SIGNAL</span>
+                        <strong>ETH/USD</strong>
+                        <span>1H Timeframe</span>
+                    </div>
+                    <div style="font-size: 1.2rem; font-weight: 700;">Consolidation Phase - Wait for Breakout</div>
+                </div>
+                <span style="font-size: 2rem; font-weight: 700;">$1,802</span>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+    # Finora AI Strategy
+    st.markdown("""
+    <div class="card">
+        <h2 style="margin-top: 0; display: flex; align-items: center; gap: 10px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3498db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            FINORA AI STRATEGY
+        </h2>
+        
+        <div style="background: rgba(46, 134, 222, 0.15); padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                <div style="background: #2e86de; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 5.69l5 4.5V18h-2v-6H9v6H7v-7.81l5-4.5M12 3L2 12h3v8h6v-6h2v6h6v-8h3L12 3z"></path>
+                    </svg>
+                </div>
+                <strong>Current Market Phase</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 1.2rem; font-weight: 700;">Bullish Acceleration</span>
+                <span style="background: #27ae60; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem;">CONFIRMED</span>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                <span>Trend Strength</span>
+                <span style="font-weight: 700;" class="positive">Strong</span>
+            </div>
+            <div style="height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                <div style="height: 100%; width: 92%; background: #27ae60; border-radius: 4px;"></div>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                <span>Momentum</span>
+                <span style="font-weight: 700;" class="positive">Increasing</span>
+            </div>
+            <div style="height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                <div style="height: 100%; width: 87%; background: #27ae60; border-radius: 4px;"></div>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                <span>Risk Level</span>
+                <span style="font-weight: 700;" class="positive">Low</span>
+            </div>
+            <div style="height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                <div style="height: 100%; width: 35%; background: #f39c12; border-radius: 4px;"></div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 2rem; background: rgba(243, 156, 18, 0.15); padding: 1rem; border-radius: 12px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f39c12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <strong>AI Trading Tip</strong>
+            </div>
+            <p>Consider scaling in positions during pullbacks to the $33,800 support level. Monitor volume for confirmation of continued bullish momentum.</p>
+        </div>
+    </div>
+    
+    <div class="card">
+        <h2 style="margin-top: 0; display: flex; align-items: center; gap: 10px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3498db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="1" x2="12" y2="23"></line>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+            RISK MANAGER
+        </h2>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+            <div style="background: rgba(231, 76, 60, 0.15); padding: 1rem; border-radius: 12px;">
+                <div style="font-size: 0.9rem; margin-bottom: 5px;">Max Risk</div>
+                <div style="font-size: 1.4rem; font-weight: 700; color: #e74c3c;">${account_size * risk_percent/100:.2f}</div>
+            </div>
+            
+            <div style="background: rgba(46, 204, 113, 0.15); padding: 1rem; border-radius: 12px;">
+                <div style="font-size: 0.9rem; margin-bottom: 5px;">Potential Reward</div>
+                <div style="font-size: 1.4rem; font-weight: 700; color: #27ae60;">${account_size * risk_percent/100 * int(risk_reward.split(':')[1]):.2f}</div>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                <span>Position Size</span>
+                <span style="font-weight: 700;">0.85 BTC</span>
+            </div>
+            <div style="height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                <div style="height: 100%; width: 65%; background: #2e86de; border-radius: 4px;"></div>
+            </div>
+        </div>
+        
+        <div style="background: rgba(52, 152, 219, 0.15); padding: 1rem; border-radius: 12px; margin-top: 1.5rem;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3498db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <strong>Smart Protection</strong>
+            </div>
+            <p>Auto-adjusting stops enabled. Exit 50% at R1 ($34,500), trail stop on remainder.</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Sezione inferiore
+st.markdown("""
+<div class="card">
+    <h2 style="margin-top: 0; display: flex; align-items: center; gap: 10px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3498db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="16 18 22 12 16 6"></polyline>
+            <polyline points="8 6 2 12 8 18"></polyline>
+        </svg>
+        MULTI-TIMEFRAME CONFIRMATION
+    </h2>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+        <div>
+            <h3 style="display: flex; align-items: center; gap: 8px; margin-bottom: 1rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3498db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                4H TIMEFRAME
+            </h3>
+            <div style="background: rgba(39, 174, 96, 0.1); padding: 1rem; border-radius: 12px; border-left: 4px solid #27ae60;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span>Ichimoku Cloud</span>
+                    <span class="positive">Bullish</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span>RSI (14)</span>
+                    <span>62.3 <span class="positive">▲</span></span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span>Volume Trend</span>
+                    <span class="positive">Increasing</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Finora Score</span>
+                    <span style="font-weight: 700;" class="positive">8.7/10</span>
+                </div>
+            </div>
+        </div>
+        
+        <div>
+            <h3 style="display: flex; align-items: center; gap: 8px; margin-bottom: 1rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3498db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                1D TIMEFRAME
+            </h3>
+            <div style="background: rgba(39, 174, 96, 0.1); padding: 1rem; border-radius: 12px; border-left: 4px solid #27ae60;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span>Ichimoku Cloud</span>
+                    <span class="positive">Bullish</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span>MACD</span>
+                    <span class="positive">Positive Crossover</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span>Key Level</span>
+                    <span>$33,800 Support</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Finora Score</span>
+                    <span style="font-weight: 700;" class="positive">8.2/10</span>
+                </div>
+            </div>
+        </div>
+        
+        <div>
+            <h3 style="display: flex; align-items: center; gap: 8px; margin-bottom: 1rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3498db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                1W TIMEFRAME
+            </h3>
+            <div style="background: rgba(243, 156, 18, 0.1); padding: 1rem; border-radius: 12px; border-left: 4px solid #f39c12;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span>Trend</span>
+                    <span>Neutral</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span>Volume</span>
+                    <span>Below Average</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span>Key Level</span>
+                    <span>$36,200 Resistance</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Finora Score</span>
+                    <span style="font-weight: 700;">6.5/10</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Disclaimer
+st.markdown("""
+<div class="card" style="background: rgba(231, 76, 60, 0.1); border-left: 4px solid #e74c3c;">
+    <div style="display: flex; gap: 12px;">
+        <div style="color: #e74c3c;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+        </div>
+        <div>
+            <h3 style="margin-top: 0; color: #e74c3c;">RISK DISCLAIMER</h3>
+            <p>Trading involves significant risk of loss. The analysis provided by Finora Pro Terminal is for informational purposes only and should not be considered financial advice. Past performance is not indicative of future results. Always conduct your own research and consider consulting with a qualified financial advisor before making any trading decisions.</p>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
